@@ -1,9 +1,11 @@
 import imaplib
 import json
 import logging
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from unittest import mock
 
 from billcheck_collector import __main__ as entry
@@ -92,6 +94,10 @@ class ServerTest(unittest.TestCase):
 
 
 class EntryTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
     def test_http_server_url_refused(self):
         env = {"BILLCHECK_SERVER": "http://example.com", "BILLCHECK_TOKEN": "bcc_t"}
         with mock.patch.dict("os.environ", env, clear=True):
@@ -107,7 +113,7 @@ class EntryTest(unittest.TestCase):
             "IMAP_HOST": "h",
             "IMAP_USER": "u",
             "IMAP_PASSWORD": "hunter2-password",
-            "STATE_PATH": "/nonexistent/state.json",
+            "STATE_PATH": str(Path(self.tmp.name) / "state.json"),
         }
         cfg = {"sender_domains": [], "since_days": 1, "max_message_bytes": 1}
 

@@ -40,6 +40,12 @@
 
 打开小程序 → 邮箱 → 本地采集器，按提示生成令牌（`BILLCHECK_TOKEN`）。令牌是一次性展示的。
 
+## 让 AI 助手安装
+
+在小程序生成令牌后点「复制给 AI 助手的指令」，粘贴给你本机的 AI 编程助手（Claude Code、Codex 等），
+它会按 [`AGENTS.md`](AGENTS.md) 完成安装、自检和常驻运行。授权码不经过 AI 助手：它会给你一条命令，
+由你在自己的终端里输入授权码写进本机配置文件。
+
 ## 运行
 
 ### Docker
@@ -54,7 +60,13 @@ docker run -d --name billcheck-collector --restart unless-stopped \
   <镜像地址见小程序令牌页>
 ```
 
-加 `--once` 作为镜像参数可只跑一轮就退出。
+加 `--once` 作为镜像参数可只跑一轮就退出；加 `--check` 只做自检（状态目录可写、令牌有效、IMAP 能登录），
+不上传任何邮件，全部通过时退出码为 0。
+
+`/data` 请用命名卷（如上）。容器以 uid 10001 运行，挂载主机目录需先 `chown 10001` 该目录，否则状态文件写不进去，
+采集器会在启动时报「状态目录不可写」并退出。
+
+也可以把变量写进文件（每行 `KEY=值`，值不加引号），用 `--env-file 文件路径` 代替一串 `-e`。
 
 ### 直接用 Python（>= 3.10，无需安装依赖）
 
@@ -66,7 +78,11 @@ export STATE_PATH="$HOME/.billcheck-collector/state.json"   # 默认是 /data/st
 mkdir -p "$(dirname "$STATE_PATH")"
 python3 -m billcheck_collector          # 常驻循环
 python3 -m billcheck_collector --once   # 只跑一轮
+python3 -m billcheck_collector --check  # 只自检，不上传
 ```
+
+不想用 `export` 时，可以把变量写进文件（格式同 `docker --env-file`），运行时加 `--env-file 文件路径`；
+已存在的环境变量优先于文件里的值。
 
 ## 环境变量
 
@@ -89,6 +105,7 @@ python3 -m billcheck_collector --once   # 只跑一轮
 
 ## 常见问题
 
+- 退出码 2 并提示「缺少环境变量」或「状态目录不可写」：按提示补齐配置后重启。
 - 日志出现 401：令牌已失效或需要在小程序重新确认授权。进程不会退出，处理好后下一轮自动恢复。
 - 登录 IMAP 失败或网络错误：记录日志，下一轮重试。
 
